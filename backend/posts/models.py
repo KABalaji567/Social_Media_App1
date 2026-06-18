@@ -28,6 +28,18 @@ class Post(models.Model):
     def __str__(self):
         return f"{self.user.username}'s post at {self.created_at}"
 
+    @property
+    def likes_count(self):
+        return self.reactions.filter(type='LIKE').count()
+
+    @property
+    def dislikes_count(self):
+        return self.reactions.filter(type='DISLIKE').count()
+
+    @property
+    def comments_count(self):
+        return self.comments.count()
+
 class SavedPost(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='saved_posts')
     post = models.ForeignKey(Post, on_delete=models.CASCADE, related_name='saved_by')

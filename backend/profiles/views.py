@@ -1,53 +1,52 @@
-from rest_framework import generics, permissions, status
+from rest_framework import viewsets, permissions, status, decorators
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from django.shortcuts import get_object_or_404
-from django.contrib.auth.models import User
 from .models import Profile, Follow
 from .serializers import ProfileSerializer, FollowSerializer
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
 
-class ProfileDetailView(generics.RetrieveUpdateAPIView):
+class ProfileViewSet(viewsets.ModelViewSet):
     queryset = Profile.objects.all()
     serializer_class = ProfileSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     lookup_field = 'user__username'
-    lookup_url_kwarg = 'username'
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
         context.update({"request": self.request})
         return context
 
-class FollowUserView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, username):
-        user_to_follow = get_object_or_404(User, username=username)
-        if user_to_follow == request.user:
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def follow(self, request, user__username=None):
+        profile = self.get_object()
+        if profile.user == request.user:
             return Response({"error": "You cannot follow yourself"}, status=status.HTTP_400_BAD_REQUEST)
         
-        follow, created = Follow.objects.get_or_create(follower=request.user, following=user_to_follow)
-        
+        follow, created = Follow.objects.get_or_create(follower=request.user, following=profile.user)
         if not created:
-            follow.delete()
-            return Response({"message": "Unfollowed successfully"}, status=status.HTTP_200_OK)
+            return Response({"message": "Already following"}, status=status.HTTP_200_OK)
         
-        return Response({"message": "Followed successfully"}, status=status.HTTP_201_CREATED)
+        return Response({"message": "Successfully followed"}, status=status.HTTP_201_CREATED)
 
-class FollowersListView(generics.ListAPIView):
-    serializer_class = FollowSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    @decorators.action(detail=True, methods=['post'], permission_classes=[permissions.IsAuthenticated])
+    def unfollow(self, request, user__username=None):
+        profile = self.get_object()
+        follow = Follow.objects.filter(follower=request.user, following=profile.user)
+        if follow.exists():
+            follow.delete()
+            return Response({"message": "Successfully unfollowed"}, status=status.HTTP_200_OK)
+        return Response({"error": "Not following"}, status=status.HTTP_400_BAD_REQUEST)
 
-    def get_queryset(self):
-        username = self.kwargs.get('username')
-        user = get_object_or_404(User, username=username)
-        return Follow.objects.filter(following=user)
+    @decorators.action(detail=True, methods=['get'])
+    def followers(self, request, user__username=None):
+        profile = self.get_object()
+        followers = Follow.objects.filter(following=profile.user)
+        serializer = FollowSerializer(followers, many=True)
+        return Response(serializer.data)
 
-class FollowingListView(generics.ListAPIView):
-    serializer_class = FollowSerializer
-    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-
-    def get_queryset(self):
-        username = self.kwargs.get('username')
-        user = get_object_or_404(User, username=username)
-        return Follow.objects.filter(follower=user)
+    @decorators.action(detail=True, methods=['get'])
+    def following(self, request, user__username=None):
+        profile = self.get_object()
+        following = Follow.objects.filter(follower=profile.user)
+        serializer = FollowSerializer(following, many=True)
+        return Response(serializer.data)

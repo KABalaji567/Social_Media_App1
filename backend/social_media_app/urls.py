@@ -19,7 +19,27 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 
+from django.http import JsonResponse
+
+def api_root_status(request):
+    return JsonResponse({
+        "status": "online",
+        "name": "InstaGlass API",
+        "message": "InstaGlass Social Media App API is online and running successfully.",
+        "frontend_url": "http://localhost:3000",
+        "api_endpoints": [
+            "/api/accounts/",
+            "/api/profiles/",
+            "/api/posts/",
+            "/api/comments/",
+            "/api/reactions/",
+            "/api/chat/",
+            "/api/notifications/"
+        ]
+    })
+
 urlpatterns = [
+    path('', api_root_status, name='api-status'),
     path('admin/', admin.site.urls),
     path('api/accounts/', include('accounts.urls')),
     path('api/profiles/', include('profiles.urls')),
