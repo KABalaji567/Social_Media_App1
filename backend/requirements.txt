@@ -1,0 +1,11 @@
+django
+djangorestframework
+django-cors-headers
+django-filter
+djangorestframework-simplejwt
+django-channels
+channels-redis
+Pillow
+python-decouple
+daphne
+socketio-client
